@@ -1,6 +1,6 @@
 {
     // Visit https://aka.ms/tsconfig to read more about this file
-    "include": ["src/**/*", "eslint.config.ts"],
+    "include": ["src/**/*", "tst/**/*", "eslint.config.ts"],
     "exclude": ["node_modules", "dist"],
     "compilerOptions": {
         // File Layout

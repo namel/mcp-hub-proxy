@@ -27,4 +27,13 @@ export default defineConfig(
             ],
         },
     },
+    {
+        // Override for test files
+        files: ['tst/**/*.test.ts'],
+        rules: {
+            '@typescript-eslint/no-floating-promises': 'off',
+            '@typescript-eslint/no-unsafe-assignment': 'off',
+            '@typescript-eslint/no-unsafe-return': 'off',
+        },
+    },
 )
