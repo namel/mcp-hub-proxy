@@ -1,6 +1,6 @@
 # MCP-Hive Proxy
 
-This is the MCP-Hive Proxy. It can be loaded by any agentic host in order to access MCP-Hive and is a gateway to other MCP servers. To obtain credentials, and read further documentation, go to [mcp-hive.com](https://mcp-hive.xom)
+This is the MCP-Hive Proxy. It can be loaded by any agentic host in order to access MCP-Hive and is a gateway to other MCP servers. To obtain credentials, and read further documentation, go to [mcp-hive.com](https://mcp-hive.com)
 
 ## Running
 
