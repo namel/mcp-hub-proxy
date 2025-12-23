@@ -1,13 +1,13 @@
 import crypto from 'crypto'
 import { USER_AGENT } from '../../shared/constants.ts'
-import { MCPHubProxy } from '../mcpHubProxy.ts'
+import { MCPHiveProxy } from '../mcpHiveProxy.ts'
 import type { RequestBody, RequestArgs } from '../../shared/types/request.ts'
 import { Logger } from '../../shared/logger.ts'
 
 /**
  * General tool for sending requests to MCP-HUB Server
  */
-export class MCPHubProxyRequest {
+export class MCPHiveProxyRequest {
     /**
      * send one request to the MCP-HUB server
      *
@@ -18,14 +18,14 @@ export class MCPHubProxyRequest {
      *
      * @returns result of the tool call
      */
-    static async sendMCPHubRequest<T>(
+    static async sendMCPHiveRequest<T>(
         mcpServer: string,
         method: string,
         toolName: string,
         requestArgs: RequestArgs,
     ): Promise<T | null> {
         // get the system config
-        const mcpHubProxyConfig = MCPHubProxy.getInstance().config
+        const mcpHiveProxyConfig = MCPHiveProxy.getInstance().config
 
         // call headers
         const headers = {
@@ -36,7 +36,7 @@ export class MCPHubProxyRequest {
         // request body, currently assuming that method is a tool call
         const body: RequestBody = {
             mcpServer,
-            credentials: mcpHubProxyConfig.credentials,
+            credentials: mcpHiveProxyConfig.credentials,
             request: {
                 id: crypto.randomInt(1, 2 ** 48),
                 method,
@@ -49,7 +49,7 @@ export class MCPHubProxyRequest {
 
         try {
             // call the MCP HUB server using `fetch`
-            const response = await fetch(mcpHubProxyConfig.MCPHubURL, {
+            const response = await fetch(mcpHiveProxyConfig.MCPHiveURL, {
                 headers,
                 body: JSON.stringify(body),
                 method: 'POST',
@@ -61,12 +61,12 @@ export class MCPHubProxyRequest {
         } catch (error) {
             if (error instanceof TypeError) {
                 Logger.error(
-                    `Failed to connect to MCP-HUB Server.  Is it running?\nError message is ${error.message}`,
+                    `Failed to connect to MCP-HIVE Server.  Is it running?\nError message is ${error.message}`,
                 )
                 return null
             }
             Logger.error(
-                `Fatal error making MCP-HUB request. Error message is:\n${error as Error}`,
+                `Fatal error making MCP-HIVE request. Error message is:\n${error as Error}`,
             )
             return null
         }

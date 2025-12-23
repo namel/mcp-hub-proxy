@@ -11,7 +11,7 @@ The proxy can run in two modes:
 Proxy a specific MCP server to your MCP client:
 
 ```bash
-node src/proxy/mcpHubProxy.ts --server <server-name> --local --credentials <credentials>
+node src/proxy/mcpHiveProxy.ts --server <server-name> --local --credentials <credentials>
 ```
 
 ### Gateway Mode (All MCPs)
@@ -19,7 +19,7 @@ node src/proxy/mcpHubProxy.ts --server <server-name> --local --credentials <cred
 Expose all available MCP servers through a single proxy with namespaced tools:
 
 ```bash
-node src/proxy/mcpHubProxy.ts --gateway --local --credentials <credentials>
+node src/proxy/mcpHiveProxy.ts --gateway --local --credentials <credentials>
 ```
 
 In gateway mode:

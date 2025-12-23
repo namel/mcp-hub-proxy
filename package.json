@@ -1,21 +1,37 @@
 {
     "name": "@mcp-hive-utils/proxy",
-    "version": "1.0.1",
+    "version": "1.0.3",
     "type": "module",
     "bin": {
-        "mcp-hive-proxy": "./src/proxy/mcpHubProxy.ts"
+        "mcp-hive-proxy": "./dist/src/proxy/mcpHiveProxy.js"
     },
     "exports": {
-        ".": "./src/proxy/mcpHubProxy.ts",
-        "./types": "./src/shared/types/index.ts",
-        "./constants": "./src/shared/constants.ts",
-        "./logger": "./src/shared/logger.ts"
+        ".": {
+            "types": "./dist/src/proxy/mcpHiveProxy.d.ts",
+            "default": "./dist/src/proxy/mcpHiveProxy.js"
+        },
+        "./types": {
+            "types": "./dist/src/shared/types/index.d.ts",
+            "default": "./dist/src/shared/types/index.js"
+        },
+        "./constants": {
+            "types": "./dist/src/shared/constants.d.ts",
+            "default": "./dist/src/shared/constants.js"
+        },
+        "./logger": {
+            "types": "./dist/src/shared/logger.d.ts",
+            "default": "./dist/src/shared/logger.js"
+        }
     },
+    "files": [
+        "dist"
+    ],
     "engines": {
         "node": ">=22.0.0 <25.0.0"
     },
     "scripts": {
         "build": "prettier ./ --write && eslint && tsc --build tsconfig.json",
+        "prepublishOnly": "npm run build",
         "test": "node --test \"tst/unit/**/*.test.ts\""
     },
     "dependencies": {

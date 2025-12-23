@@ -6,7 +6,7 @@ export class Logger {
     private static logger: winston.Logger
 
     public constructor(loggerName: string) {
-        const mcpHubFormat = printf((info) => {
+        const mcpHiveFormat = printf((info) => {
             // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
             return `${info.timestamp} [${info.label}] ${info.level}: ${info.message}`
         })
@@ -16,16 +16,15 @@ export class Logger {
             format: combine(
                 label({ label: loggerName }),
                 timestamp(),
-                mcpHubFormat,
+                mcpHiveFormat,
             ),
             // use default Meta to indicate demo mode
             // defaultMeta: { service: 'user-service' },
-            // the following works on Unix systems only:
-            // transports: [
-            //     new winston.transports.File({
-            //         filename: `/tmp/${loggerName}.log`,
-            //     }),
-            // ],
+            transports: [
+                new winston.transports.File({ 
+                    filename: 'server.log' 
+                }),
+            ],
         })
     }
 

@@ -1,12 +1,12 @@
 import {
-    MCPHUB_SERVER,
+    MCPHIVE_SERVER,
     METHOD_TOOLS_CALL,
-    MCPHUB_TOOL_LIST_TOOLS,
+    MCPHIVE_TOOL_LIST_TOOLS,
 } from '../../shared/constants.ts'
 import type { McpResult } from '../../shared/types/request.ts'
-import type { MCPHubServerDesc } from '../../shared/types/serverDescriptor.ts'
-import { isMCPHubServerDesc } from '../../shared/types/serverDescriptor.ts'
-import { MCPHubProxyRequest } from './mcpHubProxyRequest.ts'
+import type { MCPHiveServerDesc } from '../../shared/types/serverDescriptor.ts'
+import { isMCPHiveServerDesc } from '../../shared/types/serverDescriptor.ts'
+import { MCPHiveProxyRequest } from './mcpHiveProxyRequest.ts'
 
 export class ListToolsProxy {
     /**
@@ -18,17 +18,17 @@ export class ListToolsProxy {
      * @returns a structure which contains listTools information, including a list of tools and
      * their schema
      */
-    public static async exec(server: string): Promise<MCPHubServerDesc> {
-        const result = await MCPHubProxyRequest.sendMCPHubRequest<McpResult>(
-            MCPHUB_SERVER,
+    public static async exec(server: string): Promise<MCPHiveServerDesc> {
+        const result = await MCPHiveProxyRequest.sendMCPHiveRequest<McpResult>(
+            MCPHIVE_SERVER,
             METHOD_TOOLS_CALL,
-            MCPHUB_TOOL_LIST_TOOLS,
+            MCPHIVE_TOOL_LIST_TOOLS,
             { server },
         )
-        if (result && isMCPHubServerDesc(result.structuredContent)) {
+        if (result && isMCPHiveServerDesc(result.structuredContent)) {
             return result.structuredContent
         } else {
-            throw new Error('Invalid response format from MCP-HUB')
+            throw new Error('Invalid response format from MCP-HIVE')
         }
     }
 }

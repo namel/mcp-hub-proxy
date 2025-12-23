@@ -5,7 +5,7 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { Logger } from '../shared/logger.ts'
 import { Utils } from '../shared/utils.ts'
-import { MCPHubProxyRequest } from './requests/mcpHubProxyRequest.ts'
+import { MCPHiveProxyRequest } from './requests/mcpHiveProxyRequest.ts'
 import { ListToolsProxy } from './requests/listToolsProxy.ts'
 import { ListResourcesProxy } from './requests/listResourcesProxy.ts'
 import { ListPromptsProxy } from './requests/listPromptsProxy.ts'
@@ -16,16 +16,16 @@ import {
     MCP_URL,
     MCP_LOCAL_URL,
     MCP_DEMO_CREDENTIALS,
-    MCPHUB_SERVER,
-    MCPHUB_TOOL_DISCOVER_SERVERS,
+    MCPHIVE_SERVER,
+    MCPHIVE_TOOL_DISCOVER_SERVERS,
 } from '../shared/constants.ts'
 import type {
     McpResult,
     McpResultContentEntry,
 } from '../shared/types/request.ts'
 import {
-    isMCPHubDiscoveryDesc,
-    type MCPHubDiscoveryDesc,
+    isMCPHiveDiscoveryDesc,
+    type MCPHiveDiscoveryDesc,
 } from '../shared/types/discoveryDescriptor.ts'
 import type {
     CallToolResult,
@@ -39,9 +39,9 @@ import type {
 } from '@modelcontextprotocol/sdk/types.js'
 
 // the configuration of an MCPHub proxy
-interface MCPHubProxyConfig {
+interface MCPHiveProxyConfig {
     local: boolean
-    MCPHubURL: string
+    MCPHiveURL: string
     credentials: string
     verbose: boolean
     gateway: boolean
@@ -60,12 +60,12 @@ const NAMESPACE_SEPARATOR = '::'
  * There is one distinct MCPHub Proxy running process for each server that the client configures. The proxy understands
  * which server it is proxy-ing and implements all aspects of the API that is required of an MCP server.
  */
-export class MCPHubProxy {
-    private static instance: MCPHubProxy
+export class MCPHiveProxy {
+    private static instance: MCPHiveProxy
     private mcpServer: McpServer
-    public config: MCPHubProxyConfig = {
+    public config: MCPHiveProxyConfig = {
         local: false,
-        MCPHubURL: MCP_URL,
+        MCPHiveURL: MCP_URL,
         credentials: MCP_DEMO_CREDENTIALS,
         verbose: false,
         gateway: false,
@@ -73,12 +73,12 @@ export class MCPHubProxy {
 
     private constructor() {
         // create the logger
-        new Logger('MCPHubProxy')
+        new Logger('MCPHiveProxy')
 
         // create server instance using the SDK
         this.mcpServer = new McpServer(
             {
-                name: 'MCPHub-proxy',
+                name: 'MCPHive-proxy',
                 version: '1.0.0',
             },
             {
@@ -97,11 +97,11 @@ export class MCPHubProxy {
     }
 
     // singleton access
-    public static getInstance(): MCPHubProxy {
-        if (!MCPHubProxy.instance) {
-            MCPHubProxy.instance = new MCPHubProxy()
+    public static getInstance(): MCPHiveProxy {
+        if (!MCPHiveProxy.instance) {
+            MCPHiveProxy.instance = new MCPHiveProxy()
         }
-        return MCPHubProxy.instance
+        return MCPHiveProxy.instance
     }
 
     /**
@@ -151,7 +151,7 @@ export class MCPHubProxy {
         this.config.credentials = credentials
         this.config.gateway = gateway
         if (isLocal) {
-            this.config.MCPHubURL = MCP_LOCAL_URL
+            this.config.MCPHiveURL = MCP_LOCAL_URL
         }
 
         // Branch based on mode
@@ -175,22 +175,22 @@ export class MCPHubProxy {
 
         // Discover all available servers
         const discoveryResult =
-            await MCPHubProxyRequest.sendMCPHubRequest<McpResult>(
-                MCPHUB_SERVER,
+            await MCPHiveProxyRequest.sendMCPHiveRequest<McpResult>(
+                MCPHIVE_SERVER,
                 METHOD_TOOLS_CALL,
-                MCPHUB_TOOL_DISCOVER_SERVERS,
+                MCPHIVE_TOOL_DISCOVER_SERVERS,
                 { mode: 'list' },
             )
 
         if (
             !discoveryResult?.structuredContent ||
-            !isMCPHubDiscoveryDesc(discoveryResult.structuredContent)
+            !isMCPHiveDiscoveryDesc(discoveryResult.structuredContent)
         ) {
             Logger.error('Failed to discover servers in gateway mode')
             return
         }
 
-        const discovery: MCPHubDiscoveryDesc = discoveryResult.structuredContent
+        const discovery: MCPHiveDiscoveryDesc = discoveryResult.structuredContent
 
         Logger.debug(`Gateway mode: discovered ${discovery.totalCount} servers`)
 
@@ -214,7 +214,7 @@ export class MCPHubProxy {
      */
     private async registerDiscoveryTools(): Promise<void> {
         // Fetch the mcp-hive tools
-        const MCPHubServerDesc = await ListToolsProxy.exec(MCPHUB_SERVER)
+        const MCPHubServerDesc = await ListToolsProxy.exec(MCPHIVE_SERVER)
 
         for (const toolDesc of MCPHubServerDesc.tools) {
             const unpackedArgs: Record<string, unknown> = {}
@@ -238,8 +238,8 @@ export class MCPHubProxy {
                 },
                 async (input: { [x: string]: unknown }) => {
                     const result =
-                        await MCPHubProxyRequest.sendMCPHubRequest<McpResult>(
-                            MCPHUB_SERVER,
+                        await MCPHiveProxyRequest.sendMCPHiveRequest<McpResult>(
+                            MCPHIVE_SERVER,
                             METHOD_TOOLS_CALL,
                             toolDesc.name,
                             input,
@@ -297,7 +297,7 @@ export class MCPHubProxy {
                 },
                 async (input: { [x: string]: unknown }) => {
                     const result =
-                        await MCPHubProxyRequest.sendMCPHubRequest<McpResult>(
+                        await MCPHiveProxyRequest.sendMCPHiveRequest<McpResult>(
                             serverName,
                             METHOD_TOOLS_CALL,
                             toolName,
@@ -354,7 +354,7 @@ export class MCPHubProxy {
                     },
                     async () => {
                         const result =
-                            await MCPHubProxyRequest.sendMCPHubRequest<McpResult>(
+                            await MCPHiveProxyRequest.sendMCPHiveRequest<McpResult>(
                                 serverName,
                                 METHOD_RESOURCES_READ,
                                 resourceUri,
@@ -435,7 +435,7 @@ export class MCPHubProxy {
                     promptConfig,
                     async (args: { [x: string]: unknown }) => {
                         const result =
-                            await MCPHubProxyRequest.sendMCPHubRequest<McpResult>(
+                            await MCPHiveProxyRequest.sendMCPHiveRequest<McpResult>(
                                 serverName,
                                 METHOD_PROMPTS_GET,
                                 promptName,
@@ -503,7 +503,7 @@ export class MCPHubProxy {
 
                     // submit the tool operation to MCPHub and collect the result
                     const result =
-                        await MCPHubProxyRequest.sendMCPHubRequest<McpResult>(
+                        await MCPHiveProxyRequest.sendMCPHiveRequest<McpResult>(
                             serverName,
                             METHOD_TOOLS_CALL,
                             toolDesc.name,
@@ -561,7 +561,7 @@ export class MCPHubProxy {
 
                         // submit the resource read operation to MCPHub and collect the result
                         const result =
-                            await MCPHubProxyRequest.sendMCPHubRequest<McpResult>(
+                            await MCPHiveProxyRequest.sendMCPHiveRequest<McpResult>(
                                 serverName,
                                 METHOD_RESOURCES_READ,
                                 resource.uri,
@@ -655,7 +655,7 @@ export class MCPHubProxy {
 
                         // submit the prompt get operation to MCPHub and collect the result
                         const result =
-                            await MCPHubProxyRequest.sendMCPHubRequest<McpResult>(
+                            await MCPHiveProxyRequest.sendMCPHiveRequest<McpResult>(
                                 serverName,
                                 METHOD_PROMPTS_GET,
                                 prompt.name,
@@ -789,7 +789,7 @@ export class MCPHubProxy {
 // Start the MCPHub Proxy
 Utils.main(import.meta.filename, async () => {
     const args = Utils.proxyArgs()
-    const mcpHubProxy = MCPHubProxy.getInstance()
+    const mcpHubProxy = MCPHiveProxy.getInstance()
     await mcpHubProxy.initialize(
         args.server,
         args.local,

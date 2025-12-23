@@ -1,12 +1,12 @@
 import {
-    MCPHUB_SERVER,
+    MCPHIVE_SERVER,
     METHOD_TOOLS_CALL,
-    MCPHUB_TOOL_LIST_PROMPTS,
+    MCPHIVE_TOOL_LIST_PROMPTS,
 } from '../../shared/constants.ts'
 import type { McpResult } from '../../shared/types/request.ts'
-import type { MCPHubPromptsDesc } from '../../shared/types/promptDescriptor.ts'
-import { isMCPHubPromptsDesc } from '../../shared/types/promptDescriptor.ts'
-import { MCPHubProxyRequest } from './mcpHubProxyRequest.ts'
+import type { MCPHivePromptsDesc } from '../../shared/types/promptDescriptor.ts'
+import { isMCPHivePromptsDesc } from '../../shared/types/promptDescriptor.ts'
+import { MCPHiveProxyRequest } from './mcpHiveProxyRequest.ts'
 
 export class ListPromptsProxy {
     /**
@@ -18,17 +18,17 @@ export class ListPromptsProxy {
      * @returns a structure which contains listPrompts information, including a list of prompts
      * and their metadata
      */
-    public static async exec(server: string): Promise<MCPHubPromptsDesc> {
-        const result = await MCPHubProxyRequest.sendMCPHubRequest<McpResult>(
-            MCPHUB_SERVER,
+    public static async exec(server: string): Promise<MCPHivePromptsDesc> {
+        const result = await MCPHiveProxyRequest.sendMCPHiveRequest<McpResult>(
+            MCPHIVE_SERVER,
             METHOD_TOOLS_CALL,
-            MCPHUB_TOOL_LIST_PROMPTS,
+            MCPHIVE_TOOL_LIST_PROMPTS,
             { server },
         )
-        if (result && isMCPHubPromptsDesc(result.structuredContent)) {
+        if (result && isMCPHivePromptsDesc(result.structuredContent)) {
             return result.structuredContent
         } else {
-            throw new Error('Invalid response format from MCP-HUB')
+            throw new Error('Invalid response format from MCP-HIVE')
         }
     }
 }

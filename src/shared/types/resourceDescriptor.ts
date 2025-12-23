@@ -17,25 +17,25 @@ export function isResource(obj: unknown): obj is Resource {
 }
 
 // Server descriptor with resources
-export interface MCPHubResourcesDesc {
+export interface MCPHiveResourcesDesc {
     id: string
     server: string
     resources: Resource[]
 }
 
 // Type guard for a resources descriptor
-export function isMCPHubResourcesDesc(
+export function isMCPHiveResourcesDesc(
     obj: unknown,
-): obj is MCPHubResourcesDesc {
+): obj is MCPHiveResourcesDesc {
     if (
         obj !== null &&
         typeof obj === 'object' &&
-        typeof (obj as MCPHubResourcesDesc).id === 'string' &&
-        typeof (obj as MCPHubResourcesDesc).server === 'string' &&
-        typeof (obj as MCPHubResourcesDesc).resources === 'object' &&
-        Array.isArray((obj as MCPHubResourcesDesc).resources)
+        typeof (obj as MCPHiveResourcesDesc).id === 'string' &&
+        typeof (obj as MCPHiveResourcesDesc).server === 'string' &&
+        typeof (obj as MCPHiveResourcesDesc).resources === 'object' &&
+        Array.isArray((obj as MCPHiveResourcesDesc).resources)
     ) {
-        for (const r of (obj as MCPHubResourcesDesc).resources) {
+        for (const r of (obj as MCPHiveResourcesDesc).resources) {
             if (!isResource(r)) {
                 return false
             }

@@ -1,12 +1,12 @@
 import {
-    MCPHUB_SERVER,
+    MCPHIVE_SERVER,
     METHOD_TOOLS_CALL,
-    MCPHUB_TOOL_LIST_RESOURCES,
+    MCPHIVE_TOOL_LIST_RESOURCES,
 } from '../../shared/constants.ts'
 import type { McpResult } from '../../shared/types/request.ts'
-import type { MCPHubResourcesDesc } from '../../shared/types/resourceDescriptor.ts'
-import { isMCPHubResourcesDesc } from '../../shared/types/resourceDescriptor.ts'
-import { MCPHubProxyRequest } from './mcpHubProxyRequest.ts'
+import type { MCPHiveResourcesDesc } from '../../shared/types/resourceDescriptor.ts'
+import { isMCPHiveResourcesDesc } from '../../shared/types/resourceDescriptor.ts'
+import { MCPHiveProxyRequest } from './mcpHiveProxyRequest.ts'
 
 export class ListResourcesProxy {
     /**
@@ -18,17 +18,17 @@ export class ListResourcesProxy {
      * @returns a structure which contains listResources information, including a list of resources
      * and their metadata
      */
-    public static async exec(server: string): Promise<MCPHubResourcesDesc> {
-        const result = await MCPHubProxyRequest.sendMCPHubRequest<McpResult>(
-            MCPHUB_SERVER,
+    public static async exec(server: string): Promise<MCPHiveResourcesDesc> {
+        const result = await MCPHiveProxyRequest.sendMCPHiveRequest<McpResult>(
+            MCPHIVE_SERVER,
             METHOD_TOOLS_CALL,
-            MCPHUB_TOOL_LIST_RESOURCES,
+            MCPHIVE_TOOL_LIST_RESOURCES,
             { server },
         )
-        if (result && isMCPHubResourcesDesc(result.structuredContent)) {
+        if (result && isMCPHiveResourcesDesc(result.structuredContent)) {
             return result.structuredContent
         } else {
-            throw new Error('Invalid response format from MCP-HUB')
+            throw new Error('Invalid response format from MCP-HIVE')
         }
     }
 }

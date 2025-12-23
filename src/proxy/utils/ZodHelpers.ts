@@ -35,7 +35,7 @@ type ZTypeDescriptor = {
 /**
  * This class solves a problem in Typescript's MCP SDK. The SDK server implementation requires that
  * tool arguments schemas are described with Zod. However Zod schemas are not serializable, and cannot
- * be sent from the MCP-HUB Server to the MCP-HUB Proxy
+ * be sent from the MCP-HIVE Server to the MCP-HIVE Proxy
  *    - Converting to JSONSchema, and serializing, and converting to Zod on the proxy does not work,
  *      as the SDK currently requires Zod 3.0, while JSONSchema conversion is implemented in Zod 4.0
  *    - Converting using public conversion packages does not work as they depend on minor version differences

@@ -26,22 +26,22 @@ export interface MCPServerDiscoveryResult {
     toolStats: DiscoveryToolStats[]
 }
 
-export interface MCPHubDiscoveryDesc {
+export interface MCPHiveDiscoveryDesc {
     servers: MCPServerDiscoveryResult[]
     totalCount: number
 }
 
-// Type guard for MCPHubDiscoveryDesc
-export function isMCPHubDiscoveryDesc(
+// Type guard
+export function isMCPHiveDiscoveryDesc(
     obj: unknown,
-): obj is MCPHubDiscoveryDesc {
+): obj is MCPHiveDiscoveryDesc {
     if (
         obj !== null &&
         typeof obj === 'object' &&
         'servers' in obj &&
-        Array.isArray((obj as MCPHubDiscoveryDesc).servers) &&
+        Array.isArray((obj as MCPHiveDiscoveryDesc).servers) &&
         'totalCount' in obj &&
-        typeof (obj as MCPHubDiscoveryDesc).totalCount === 'number'
+        typeof (obj as MCPHiveDiscoveryDesc).totalCount === 'number'
     ) {
         return true
     }

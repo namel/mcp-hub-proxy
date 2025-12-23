@@ -12,16 +12,16 @@ export function isTool(obj: unknown): obj is Tool {
 }
 
 // type guard for a server descriptor
-export function isMCPHubServerDesc(obj: unknown): obj is MCPHubServerDesc {
+export function isMCPHiveServerDesc(obj: unknown): obj is MCPHiveServerDesc {
     if (
         obj !== null &&
         typeof obj === 'object' &&
-        typeof (obj as MCPHubServerDesc).id === 'string' &&
-        typeof (obj as MCPHubServerDesc).server === 'string' &&
-        typeof (obj as MCPHubServerDesc).tools === 'object' &&
-        Array.isArray((obj as MCPHubServerDesc).tools)
+        typeof (obj as MCPHiveServerDesc).id === 'string' &&
+        typeof (obj as MCPHiveServerDesc).server === 'string' &&
+        typeof (obj as MCPHiveServerDesc).tools === 'object' &&
+        Array.isArray((obj as MCPHiveServerDesc).tools)
     ) {
-        for (const t of (obj as MCPHubServerDesc).tools) {
+        for (const t of (obj as MCPHiveServerDesc).tools) {
             if (!isTool(t)) {
                 return false
             }
@@ -38,7 +38,7 @@ export interface Tool {
     required_inputs: string[]
 }
 
-export interface MCPHubServerDesc {
+export interface MCPHiveServerDesc {
     id: string
     server: string
     tools: Tool[]

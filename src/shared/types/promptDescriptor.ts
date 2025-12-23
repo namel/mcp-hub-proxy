@@ -22,23 +22,23 @@ export function isPrompt(obj: unknown): obj is Prompt {
 }
 
 // Server descriptor with prompts
-export interface MCPHubPromptsDesc {
+export interface MCPHivePromptsDesc {
     id: string
     server: string
     prompts: Prompt[]
 }
 
 // Type guard for a prompts descriptor
-export function isMCPHubPromptsDesc(obj: unknown): obj is MCPHubPromptsDesc {
+export function isMCPHivePromptsDesc(obj: unknown): obj is MCPHivePromptsDesc {
     if (
         obj !== null &&
         typeof obj === 'object' &&
-        typeof (obj as MCPHubPromptsDesc).id === 'string' &&
-        typeof (obj as MCPHubPromptsDesc).server === 'string' &&
-        typeof (obj as MCPHubPromptsDesc).prompts === 'object' &&
-        Array.isArray((obj as MCPHubPromptsDesc).prompts)
+        typeof (obj as MCPHivePromptsDesc).id === 'string' &&
+        typeof (obj as MCPHivePromptsDesc).server === 'string' &&
+        typeof (obj as MCPHivePromptsDesc).prompts === 'object' &&
+        Array.isArray((obj as MCPHivePromptsDesc).prompts)
     ) {
-        for (const p of (obj as MCPHubPromptsDesc).prompts) {
+        for (const p of (obj as MCPHivePromptsDesc).prompts) {
             if (!isPrompt(p)) {
                 return false
             }
