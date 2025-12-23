@@ -190,7 +190,8 @@ export class MCPHiveProxy {
             return
         }
 
-        const discovery: MCPHiveDiscoveryDesc = discoveryResult.structuredContent
+        const discovery: MCPHiveDiscoveryDesc =
+            discoveryResult.structuredContent
 
         Logger.debug(`Gateway mode: discovered ${discovery.totalCount} servers`)
 

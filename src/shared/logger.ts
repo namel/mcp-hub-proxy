@@ -21,8 +21,8 @@ export class Logger {
             // use default Meta to indicate demo mode
             // defaultMeta: { service: 'user-service' },
             transports: [
-                new winston.transports.File({ 
-                    filename: 'server.log' 
+                new winston.transports.File({
+                    filename: 'server.log',
                 }),
             ],
         })
