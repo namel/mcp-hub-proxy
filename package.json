@@ -1,6 +1,6 @@
 {
     "name": "@mcp-hive-utils/proxy",
-    "version": "1.0.4",
+    "version": "1.0.5",
     "type": "module",
     "bin": {
         "mcp-hive-proxy": "./dist/src/proxy/mcpHiveProxy.js"

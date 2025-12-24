@@ -38,7 +38,7 @@ import type {
     ResourceLink,
 } from '@modelcontextprotocol/sdk/types.js'
 
-// the configuration of an MCPHub proxy
+// the configuration of an MCPHive proxy
 interface MCPHiveProxyConfig {
     local: boolean
     MCPHiveURL: string
@@ -51,14 +51,20 @@ interface MCPHiveProxyConfig {
 const NAMESPACE_SEPARATOR = '::'
 
 /**
- * The MCPHub Proxy is the logic that executes on the client host, and acts as an MCP server.
+ * The MCPHive Proxy is the logic that executes on the client host, and acts as an MCP server.
  *
- * Every request it receives is forwarded to MCPHub and fulfilled there. The MCPHub central server
- * builds the MCP response and returns it to the MCPHub proxy, which in turn, returns it to the client host's
+ * Every request it receives is forwarded to MCPHive and fulfilled there. The MCPHive central server
+ * builds the MCP response and returns it to the MCPHive proxy, which in turn, returns it to the client host's
  * MCP Client.
  *
- * There is one distinct MCPHub Proxy running process for each server that the client configures. The proxy understands
+ * There is one distinct MCPHive Proxy running process for each server that the client configures. The proxy understands
  * which server it is proxy-ing and implements all aspects of the API that is required of an MCP server.
+ *
+ * The MCPHive Proxy can run in two modes:
+ *   - server mode: whereby the proxy acts in the role of one specific server.
+ *   - gateway mode: whereby the proxy is a gateway to all MCP servers in the MCP Hive, provides tools for
+ *     discover these MCP servers, and enables name-spaced access to their tools and resources.
+ *
  */
 export class MCPHiveProxy {
     private static instance: MCPHiveProxy
@@ -198,9 +204,9 @@ export class MCPHiveProxy {
         // For each discovered server, fetch and register its tools/resources/prompts
         for (const server of discovery.servers) {
             try {
-                await this.registerServerTools(server.id)
-                await this.registerServerResources(server.id)
-                await this.registerServerPrompts(server.id)
+                await this.registerServerTools(server.name)
+                await this.registerServerResources(server.name)
+                await this.registerServerPrompts(server.name)
             } catch (error) {
                 Logger.error(
                     `Failed to register server ${server.id}: ${error instanceof Error ? error.message : String(error)}`,
@@ -215,9 +221,9 @@ export class MCPHiveProxy {
      */
     private async registerDiscoveryTools(): Promise<void> {
         // Fetch the mcp-hive tools
-        const MCPHubServerDesc = await ListToolsProxy.exec(MCPHIVE_SERVER)
+        const MCPHiveServerDesc = await ListToolsProxy.exec(MCPHIVE_SERVER)
 
-        for (const toolDesc of MCPHubServerDesc.tools) {
+        for (const toolDesc of MCPHiveServerDesc.tools) {
             const unpackedArgs: Record<string, unknown> = {}
             for (const [k, v] of Object.entries(toolDesc.input_schema)) {
                 unpackedArgs[k] = JSON.parse(v)
@@ -266,9 +272,9 @@ export class MCPHiveProxy {
      * Register tools from a specific server with namespaced names
      */
     private async registerServerTools(serverName: string): Promise<void> {
-        const MCPHubServerDesc = await ListToolsProxy.exec(serverName)
+        const MCPHiveServerDesc = await ListToolsProxy.exec(serverName)
 
-        for (const toolDesc of MCPHubServerDesc.tools) {
+        for (const toolDesc of MCPHiveServerDesc.tools) {
             const namespacedName = this.makeNamespacedName(
                 serverName,
                 toolDesc.name,
@@ -326,10 +332,10 @@ export class MCPHiveProxy {
      */
     private async registerServerResources(serverName: string): Promise<void> {
         try {
-            const MCPHubResourcesDesc =
+            const MCPHiveResourcesDesc =
                 await ListResourcesProxy.exec(serverName)
 
-            for (const resource of MCPHubResourcesDesc.resources) {
+            for (const resource of MCPHiveResourcesDesc.resources) {
                 const namespacedName = this.makeNamespacedName(
                     serverName,
                     resource.name,
@@ -396,9 +402,9 @@ export class MCPHiveProxy {
      */
     private async registerServerPrompts(serverName: string): Promise<void> {
         try {
-            const MCPHubPromptsDesc = await ListPromptsProxy.exec(serverName)
+            const MCPHivePromptsDesc = await ListPromptsProxy.exec(serverName)
 
-            for (const prompt of MCPHubPromptsDesc.prompts) {
+            for (const prompt of MCPHivePromptsDesc.prompts) {
                 const namespacedName = this.makeNamespacedName(
                     serverName,
                     prompt.name,
@@ -465,16 +471,16 @@ export class MCPHiveProxy {
     }
 
     /**
-     * Initialize in proxy mode - proxy a single server (original behavior)
+     * Initialize in proxy mode - proxy a single server
      */
     private async initializeProxyMode(serverName: string): Promise<void> {
         Logger.debug(`Initializing in Proxy mode for server: ${serverName}`)
 
         // collect and register tools
-        const MCPHubServerDesc = await ListToolsProxy.exec(serverName)
-        const toolCount = MCPHubServerDesc.tools.length
+        const MCPHiveServerDesc = await ListToolsProxy.exec(serverName)
+        const toolCount = MCPHiveServerDesc.tools.length
         for (let i = 0; i < toolCount; i++) {
-            const toolDesc = MCPHubServerDesc.tools[i]!
+            const toolDesc = MCPHiveServerDesc.tools[i]!
             const unpackedArgs: Record<string, unknown> = {}
             for (const [k, v] of Object.entries(toolDesc.input_schema)) {
                 unpackedArgs[k] = JSON.parse(v)
@@ -502,7 +508,7 @@ export class MCPHiveProxy {
                         `tool ${toolDesc.name} invoked with input ${JSON.stringify(Object.entries(input))} extra ${JSON.stringify(Object.entries(extra))}`,
                     )
 
-                    // submit the tool operation to MCPHub and collect the result
+                    // submit the tool operation to MCPHive and collect the result
                     const result =
                         await MCPHiveProxyRequest.sendMCPHiveRequest<McpResult>(
                             serverName,
@@ -537,13 +543,13 @@ export class MCPHiveProxy {
 
         // collect and register resources
         try {
-            const MCPHubResourcesDesc =
+            const MCPHiveResourcesDesc =
                 await ListResourcesProxy.exec(serverName)
-            const resourceCount = MCPHubResourcesDesc.resources.length
+            const resourceCount = MCPHiveResourcesDesc.resources.length
             Logger.debug(`Registering ${resourceCount} resources`)
 
             for (let i = 0; i < resourceCount; i++) {
-                const resource = MCPHubResourcesDesc.resources[i]!
+                const resource = MCPHiveResourcesDesc.resources[i]!
                 Logger.debug(
                     `Registering resource ${resource.name} with URI ${resource.uri}`,
                 )
@@ -560,7 +566,7 @@ export class MCPHiveProxy {
                     async () => {
                         Logger.debug(`Reading resource ${resource.uri}`)
 
-                        // submit the resource read operation to MCPHub and collect the result
+                        // submit the resource read operation to MCPHive and collect the result
                         const result =
                             await MCPHiveProxyRequest.sendMCPHiveRequest<McpResult>(
                                 serverName,
@@ -611,12 +617,12 @@ export class MCPHiveProxy {
 
         // collect and register prompts
         try {
-            const MCPHubPromptsDesc = await ListPromptsProxy.exec(serverName)
-            const promptCount = MCPHubPromptsDesc.prompts.length
+            const MCPHivePromptsDesc = await ListPromptsProxy.exec(serverName)
+            const promptCount = MCPHivePromptsDesc.prompts.length
             Logger.debug(`Registering ${promptCount} prompts`)
 
             for (let i = 0; i < promptCount; i++) {
-                const prompt = MCPHubPromptsDesc.prompts[i]!
+                const prompt = MCPHivePromptsDesc.prompts[i]!
                 Logger.debug(`Registering prompt ${prompt.name}`)
 
                 // Build a Zod schema from the prompt's arguments
@@ -654,7 +660,7 @@ export class MCPHiveProxy {
                             `Getting prompt ${prompt.name} with args ${JSON.stringify(args)}`,
                         )
 
-                        // submit the prompt get operation to MCPHub and collect the result
+                        // submit the prompt get operation to MCPHive and collect the result
                         const result =
                             await MCPHiveProxyRequest.sendMCPHiveRequest<McpResult>(
                                 serverName,
@@ -787,16 +793,16 @@ export class MCPHiveProxy {
     }
 }
 
-// Start the MCPHub Proxy
+// Start the MCPHive Proxy
 Utils.main(import.meta.filename, async () => {
     const args = Utils.proxyArgs()
-    const mcpHubProxy = MCPHiveProxy.getInstance()
-    await mcpHubProxy.initialize(
+    const mcpHiveProxy = MCPHiveProxy.getInstance()
+    await mcpHiveProxy.initialize(
         args.server,
         args.local,
         args.credentials,
         args.verbose,
         args.gateway,
     )
-    await mcpHubProxy.run()
+    await mcpHiveProxy.run()
 })

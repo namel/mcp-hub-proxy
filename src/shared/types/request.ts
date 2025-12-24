@@ -112,7 +112,6 @@ export interface DiscoverServersRequestArgs extends RequestArgs {
     mode: 'list' | 'category' | 'keyword'
     category?: string
     keyword?: string
-    includeInactive?: boolean
 }
 
 // Type guard function
