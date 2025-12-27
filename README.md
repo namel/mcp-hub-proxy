@@ -25,7 +25,7 @@ node src/proxy/mcpHiveProxy.ts --gateway --local --credentials <credentials>
 In gateway mode:
 
 - Discovery tools are available: `discoverServers`, `listTools`, `listResources`, `listPrompts`
-- All server tools are namespaced: `serverName::toolName` (e.g., `validator::echo`, `accuweather::getWeather`)
+- All server tools are namespaced: `serverName___toolName` (e.g., `validator___echo`, `accuweather___getWeather`)
 
 ### Proxy Flags
 

@@ -48,7 +48,7 @@ interface MCPHiveProxyConfig {
 }
 
 // Namespace separator for gateway mode tool names
-const NAMESPACE_SEPARATOR = '::'
+const NAMESPACE_SEPARATOR = '___'
 
 /**
  * The MCPHive Proxy is the logic that executes on the client host, and acts as an MCP server.
