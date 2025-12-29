@@ -111,7 +111,7 @@ export class MCPHiveProxy {
     }
 
     /**
-     * Parse a namespaced tool name (serverName::toolName) into its components
+     * Parse a namespaced tool name (serverName___toolName) into its components
      */
     private parseNamespacedName(namespacedName: string): {
         serverName: string
