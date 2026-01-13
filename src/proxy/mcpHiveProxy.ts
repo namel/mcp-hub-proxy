@@ -1,3 +1,5 @@
+#!/usr/bin/env node
+
 import { z } from 'zod'
 import { ZodHelpers } from './utils/ZodHelpers.ts'
 
