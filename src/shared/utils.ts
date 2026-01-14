@@ -65,11 +65,31 @@ export class Utils {
     }
 
     // execute the provided callback as the main function, but only
-    // if the script was called explicitly as the main script
-    static main(moduleName: string, f: () => Promise<void>): void {
+    // if the script was called explicitly as the main script.
+    //
+    // This allows modules to act both as main scripts and as non-main scripts,
+    // e.g. to become importable by others. The main is called only when it was intended.
+    //
+    // moduleName: the name of the module that was the entry point
+    // binName: useful in npx execution, where the argv contains the key of
+    // the "bin" entry in the package's package.json
+    static main(
+        moduleName: string,
+        binName: string | null,
+        f: () => Promise<void>,
+    ): void {
         const moduleScript = moduleName.split('/').pop()!
-        if (process.argv.some((arg) => arg.includes(moduleScript))) {
-            void f()
+        const module = moduleScript.split('.')[0]!
+        if (
+            process.argv.some(
+                (arg) =>
+                    arg.includes(module) || (binName && arg.includes(binName)),
+            )
+        ) {
+            void f().catch((error) => {
+                console.error('Fatal error in main():', error)
+                process.exit(1)
+            })
         }
     }
 }

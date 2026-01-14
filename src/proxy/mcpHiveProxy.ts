@@ -796,7 +796,7 @@ export class MCPHiveProxy {
 }
 
 // Start the MCPHive Proxy
-Utils.main(import.meta.filename, async () => {
+Utils.main(import.meta.filename, 'mcp-hive-proxy', async () => {
     const args = Utils.proxyArgs()
     const mcpHiveProxy = MCPHiveProxy.getInstance()
     await mcpHiveProxy.initialize(
