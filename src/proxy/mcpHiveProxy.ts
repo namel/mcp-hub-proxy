@@ -20,15 +20,12 @@ import {
     MCP_DEMO_CREDENTIALS,
     MCPHIVE_SERVER,
     MCPHIVE_TOOL_DISCOVER_SERVERS,
+    MCPHIVE_TOOL_CALL_SERVER,
 } from '../shared/constants.ts'
 import type {
     McpResult,
     McpResultContentEntry,
 } from '../shared/types/request.ts'
-import {
-    isMCPHiveDiscoveryDesc,
-    type MCPHiveDiscoveryDesc,
-} from '../shared/types/discoveryDescriptor.ts'
 import type {
     CallToolResult,
     ReadResourceResult,
@@ -39,6 +36,7 @@ import type {
     EmbeddedResource,
     ResourceLink,
 } from '@modelcontextprotocol/sdk/types.js'
+import type { MCPHiveDiscoveryDesc } from '../shared/types/discoveryDescriptor.ts'
 
 // the configuration of an MCPHive proxy
 interface MCPHiveProxyConfig {
@@ -48,9 +46,6 @@ interface MCPHiveProxyConfig {
     verbose: boolean
     gateway: boolean
 }
-
-// Namespace separator for gateway mode tool names
-const NAMESPACE_SEPARATOR = '___'
 
 /**
  * The MCPHive Proxy is the logic that executes on the client host, and acts as an MCP server.
@@ -112,32 +107,6 @@ export class MCPHiveProxy {
         return MCPHiveProxy.instance
     }
 
-    /**
-     * Parse a namespaced tool name (serverName___toolName) into its components
-     */
-    private parseNamespacedName(namespacedName: string): {
-        serverName: string
-        itemName: string
-    } {
-        const idx = namespacedName.indexOf(NAMESPACE_SEPARATOR)
-        if (idx === -1) {
-            throw new Error(`Invalid namespaced name: ${namespacedName}`)
-        }
-        return {
-            serverName: namespacedName.substring(0, idx),
-            itemName: namespacedName.substring(
-                idx + NAMESPACE_SEPARATOR.length,
-            ),
-        }
-    }
-
-    /**
-     * Create a namespaced name from server and item names
-     */
-    private makeNamespacedName(serverName: string, itemName: string): string {
-        return `${serverName}${NAMESPACE_SEPARATOR}${itemName}`
-    }
-
     // initialize the proxy with key parameters
     public async initialize(
         serverName: string | undefined,
@@ -178,298 +147,101 @@ export class MCPHiveProxy {
     private async initializeGatewayMode(): Promise<void> {
         Logger.debug('Initializing in Gateway mode')
 
-        // First, register the mcp-hive discovery tools (not namespaced)
-        await this.registerDiscoveryTools()
-
-        // Discover all available servers
-        const discoveryResult =
-            await MCPHiveProxyRequest.sendMCPHiveRequest<McpResult>(
-                MCPHIVE_SERVER,
-                METHOD_TOOLS_CALL,
-                MCPHIVE_TOOL_DISCOVER_SERVERS,
-                { mode: 'list' },
-            )
-
-        if (
-            !discoveryResult?.structuredContent ||
-            !isMCPHiveDiscoveryDesc(discoveryResult.structuredContent)
-        ) {
-            Logger.error('Failed to discover servers in gateway mode')
-            return
-        }
-
-        const discovery: MCPHiveDiscoveryDesc =
-            discoveryResult.structuredContent
-
-        Logger.debug(`Gateway mode: discovered ${discovery.totalCount} servers`)
-
-        // For each discovered server, fetch and register its tools/resources/prompts
-        for (const server of discovery.servers) {
-            try {
-                await this.registerServerTools(server.name)
-                await this.registerServerResources(server.name)
-                await this.registerServerPrompts(server.name)
-            } catch (error) {
-                Logger.error(
-                    `Failed to register server ${server.id}: ${error instanceof Error ? error.message : String(error)}`,
-                )
-                // Continue with other servers
-            }
-        }
-    }
-
-    /**
-     * Register the mcp-hive discovery tools (not namespaced, available in gateway mode)
-     */
-    private async registerDiscoveryTools(): Promise<void> {
-        // Fetch the mcp-hive tools
+        // Register the Gateway tools:
+        // Fetch the mcp-hive tool "DiscoverServers".  This fetch also acts as a basic handshake
+        // to confirm connectivity
         const MCPHiveServerDesc = await ListToolsProxy.exec(MCPHIVE_SERVER)
+        const toolDesc = MCPHiveServerDesc.tools.find(
+            (tool) => MCPHIVE_TOOL_DISCOVER_SERVERS === tool.name,
+        )!
+        const unpackedArgs: Record<string, unknown> = {}
+        for (const [k, v] of Object.entries(toolDesc.input_schema)) {
+            unpackedArgs[k] = JSON.parse(v)
+        }
 
-        for (const toolDesc of MCPHiveServerDesc.tools) {
-            const unpackedArgs: Record<string, unknown> = {}
-            for (const [k, v] of Object.entries(toolDesc.input_schema)) {
-                unpackedArgs[k] = JSON.parse(v)
-            }
+        const toolArgs: z.ZodRawShape = ZodHelpers.inferZodRawShapeFromSpec(
+            unpackedArgs,
+            toolDesc.required_inputs,
+        )
 
-            const toolArgs: z.ZodRawShape = ZodHelpers.inferZodRawShapeFromSpec(
-                unpackedArgs,
-                toolDesc.required_inputs,
-            )
-
-            Logger.debug(`Registering discovery tool: ${toolDesc.name}`)
-
-            this.mcpServer.registerTool(
-                toolDesc.name, // Not namespaced
-                {
-                    title: toolDesc.name,
-                    description: toolDesc.description,
-                    inputSchema: toolArgs,
-                },
-                async (input: { [x: string]: unknown }) => {
-                    const result =
-                        await MCPHiveProxyRequest.sendMCPHiveRequest<McpResult>(
-                            MCPHIVE_SERVER,
-                            METHOD_TOOLS_CALL,
-                            toolDesc.name,
-                            input,
-                        )
-
-                    const content = (result?.content || []).map((entry) =>
-                        this.convertToSDKContent(entry),
+        // register DiscoverServers
+        this.mcpServer.registerTool(
+            toolDesc.name,
+            {
+                title: toolDesc.name,
+                description: toolDesc.description,
+                inputSchema: toolArgs,
+            },
+            async (input: { [x: string]: unknown }) => {
+                const result =
+                    await MCPHiveProxyRequest.sendMCPHiveRequest<McpResult>(
+                        MCPHIVE_SERVER,
+                        METHOD_TOOLS_CALL,
+                        toolDesc.name,
+                        input,
                     )
 
-                    return {
-                        content,
-                        isError: result?.isError,
-                        structuredContent: result?.structuredContent as
-                            | { [x: string]: unknown }
-                            | undefined,
-                    } as CallToolResult
-                },
-            )
+                const content = (result?.content || []).map((entry) =>
+                    this.convertToSDKContent(entry),
+                )
+
+                let structuredContent: MCPHiveDiscoveryDesc | undefined
+                if (result?.structuredContent) {
+                    structuredContent =
+                        result?.structuredContent as MCPHiveDiscoveryDesc
+                }
+
+                return {
+                    content,
+                    isError: result?.isError,
+                    structuredContent,
+                } as CallToolResult
+            },
+        )
+
+        // register CallTool
+        const shape: Record<string, z.ZodTypeAny> = {}
+        shape['server'] = z.string().describe('MCP server')
+        shape['tool'] = z.string().describe('tool')
+        shape['args'] = z
+            .record(z.string(), z.unknown())
+            .describe('tool arguments')
+        type CallToolDesc = {
+            server: string
+            tool: string
+            args: { [x: string]: unknown }
         }
-    }
-
-    /**
-     * Register tools from a specific server with namespaced names
-     */
-    private async registerServerTools(serverName: string): Promise<void> {
-        const MCPHiveServerDesc = await ListToolsProxy.exec(serverName)
-
-        for (const toolDesc of MCPHiveServerDesc.tools) {
-            const namespacedName = this.makeNamespacedName(
-                serverName,
-                toolDesc.name,
-            )
-
-            const unpackedArgs: Record<string, unknown> = {}
-            for (const [k, v] of Object.entries(toolDesc.input_schema)) {
-                unpackedArgs[k] = JSON.parse(v)
-            }
-
-            const toolArgs: z.ZodRawShape = ZodHelpers.inferZodRawShapeFromSpec(
-                unpackedArgs,
-                toolDesc.required_inputs,
-            )
-
-            Logger.debug(`Registering namespaced tool: ${namespacedName}`)
-
-            // Capture toolName for the closure
-            const toolName = toolDesc.name
-
-            this.mcpServer.registerTool(
-                namespacedName,
-                {
-                    title: namespacedName,
-                    description: `[${serverName}] ${toolDesc.description}`,
-                    inputSchema: toolArgs,
-                },
-                async (input: { [x: string]: unknown }) => {
-                    const result =
-                        await MCPHiveProxyRequest.sendMCPHiveRequest<McpResult>(
-                            serverName,
-                            METHOD_TOOLS_CALL,
-                            toolName,
-                            input,
-                        )
-
-                    const content = (result?.content || []).map((entry) =>
-                        this.convertToSDKContent(entry),
+        this.mcpServer.registerTool(
+            MCPHIVE_TOOL_CALL_SERVER,
+            {
+                title: MCPHIVE_TOOL_CALL_SERVER,
+                description:
+                    'Discover additional MCP Servers which can be invoked through this gateway. Collect their tool-set, pricing, and statistics. Supports listing all servers, filtering by category, or searching by keyword.',
+                inputSchema: shape,
+            },
+            async (input: { [x: string]: unknown }) => {
+                const callToolDesc = input as CallToolDesc
+                const result =
+                    await MCPHiveProxyRequest.sendMCPHiveRequest<McpResult>(
+                        callToolDesc.server,
+                        METHOD_TOOLS_CALL,
+                        callToolDesc.tool,
+                        callToolDesc.args,
                     )
 
-                    return {
-                        content,
-                        isError: result?.isError,
-                        structuredContent: result?.structuredContent as
-                            | { [x: string]: unknown }
-                            | undefined,
-                    } as CallToolResult
-                },
-            )
-        }
-    }
-
-    /**
-     * Register resources from a specific server with namespaced names
-     */
-    private async registerServerResources(serverName: string): Promise<void> {
-        try {
-            const MCPHiveResourcesDesc =
-                await ListResourcesProxy.exec(serverName)
-
-            for (const resource of MCPHiveResourcesDesc.resources) {
-                const namespacedName = this.makeNamespacedName(
-                    serverName,
-                    resource.name,
-                )
-                const namespacedUri = this.makeNamespacedName(
-                    serverName,
-                    resource.uri,
+                const content = (result?.content || []).map((entry) =>
+                    this.convertToSDKContent(entry),
                 )
 
-                Logger.debug(
-                    `Registering namespaced resource: ${namespacedName}`,
-                )
-
-                // Capture resource.uri for the closure
-                const resourceUri = resource.uri
-
-                this.mcpServer.registerResource(
-                    namespacedName,
-                    namespacedUri,
-                    {
-                        description: `[${serverName}] ${resource.description || ''}`,
-                        mimeType: resource.mimeType,
-                    },
-                    async () => {
-                        const result =
-                            await MCPHiveProxyRequest.sendMCPHiveRequest<McpResult>(
-                                serverName,
-                                METHOD_RESOURCES_READ,
-                                resourceUri,
-                                {},
-                            )
-
-                        const contents = (result?.content || []).map(
-                            (entry) => {
-                                if (entry.type === 'blob') {
-                                    return {
-                                        uri: namespacedUri,
-                                        blob: entry.text || '',
-                                        mimeType: resource.mimeType,
-                                    }
-                                } else {
-                                    return {
-                                        uri: namespacedUri,
-                                        text: entry.text || '',
-                                        mimeType: resource.mimeType,
-                                    }
-                                }
-                            },
-                        )
-
-                        return { contents } as ReadResourceResult
-                    },
-                )
-            }
-        } catch (error) {
-            Logger.debug(
-                `No resources for server ${serverName}: ${error instanceof Error ? error.message : String(error)}`,
-            )
-        }
-    }
-
-    /**
-     * Register prompts from a specific server with namespaced names
-     */
-    private async registerServerPrompts(serverName: string): Promise<void> {
-        try {
-            const MCPHivePromptsDesc = await ListPromptsProxy.exec(serverName)
-
-            for (const prompt of MCPHivePromptsDesc.prompts) {
-                const namespacedName = this.makeNamespacedName(
-                    serverName,
-                    prompt.name,
-                )
-
-                Logger.debug(`Registering namespaced prompt: ${namespacedName}`)
-
-                const argsSchema: z.ZodRawShape = {}
-                if (prompt.arguments && prompt.arguments.length > 0) {
-                    for (const arg of prompt.arguments) {
-                        if (arg.required) {
-                            argsSchema[arg.name] = z.string()
-                        } else {
-                            argsSchema[arg.name] = z.string().optional()
-                        }
-                    }
-                }
-
-                const promptConfig: {
-                    description?: string
-                    argsSchema?: z.ZodRawShape
-                } = {}
-                if (prompt.description) {
-                    promptConfig.description = `[${serverName}] ${prompt.description}`
-                }
-                if (Object.keys(argsSchema).length > 0) {
-                    promptConfig.argsSchema = argsSchema
-                }
-
-                // Capture prompt.name for the closure
-                const promptName = prompt.name
-
-                this.mcpServer.registerPrompt(
-                    namespacedName,
-                    promptConfig,
-                    async (args: { [x: string]: unknown }) => {
-                        const result =
-                            await MCPHiveProxyRequest.sendMCPHiveRequest<McpResult>(
-                                serverName,
-                                METHOD_PROMPTS_GET,
-                                promptName,
-                                args,
-                            )
-
-                        const structuredData = result?.structuredContent as
-                            | {
-                                  description?: string
-                                  messages?: GetPromptResult['messages']
-                              }
-                            | undefined
-
-                        return {
-                            description: structuredData?.description,
-                            messages: structuredData?.messages || [],
-                        } as GetPromptResult
-                    },
-                )
-            }
-        } catch (error) {
-            Logger.debug(
-                `No prompts for server ${serverName}: ${error instanceof Error ? error.message : String(error)}`,
-            )
-        }
+                return {
+                    content,
+                    isError: result?.isError,
+                    structuredContent: result?.structuredContent as
+                        | { [x: string]: unknown }
+                        | undefined,
+                } as CallToolResult
+            },
+        )
     }
 
     /**

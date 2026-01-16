@@ -30,20 +30,3 @@ export interface MCPHiveDiscoveryDesc {
     servers: MCPServerDiscoveryResult[]
     totalCount: number
 }
-
-// Type guard
-export function isMCPHiveDiscoveryDesc(
-    obj: unknown,
-): obj is MCPHiveDiscoveryDesc {
-    if (
-        obj !== null &&
-        typeof obj === 'object' &&
-        'servers' in obj &&
-        Array.isArray((obj as MCPHiveDiscoveryDesc).servers) &&
-        'totalCount' in obj &&
-        typeof (obj as MCPHiveDiscoveryDesc).totalCount === 'number'
-    ) {
-        return true
-    }
-    return false
-}
