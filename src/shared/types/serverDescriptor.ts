@@ -1,3 +1,5 @@
+import { createDescTypeGuard } from './index.ts'
+
 // type guard for a tool in a server descriptor
 export function isTool(obj: unknown): obj is Tool {
     return (
@@ -11,26 +13,6 @@ export function isTool(obj: unknown): obj is Tool {
     )
 }
 
-// type guard for a server descriptor
-export function isMCPHiveServerDesc(obj: unknown): obj is MCPHiveServerDesc {
-    if (
-        obj !== null &&
-        typeof obj === 'object' &&
-        typeof (obj as MCPHiveServerDesc).id === 'string' &&
-        typeof (obj as MCPHiveServerDesc).server === 'string' &&
-        typeof (obj as MCPHiveServerDesc).tools === 'object' &&
-        Array.isArray((obj as MCPHiveServerDesc).tools)
-    ) {
-        for (const t of (obj as MCPHiveServerDesc).tools) {
-            if (!isTool(t)) {
-                return false
-            }
-        }
-
-        return true
-    }
-    return false
-}
 export interface Tool {
     name: string
     description: string
@@ -44,3 +26,9 @@ export interface MCPHiveServerDesc {
     server: string
     tools: Tool[]
 }
+
+// type guard for a server descriptor using generic factory
+export const isMCPHiveServerDesc = createDescTypeGuard<MCPHiveServerDesc, Tool>(
+    'tools',
+    isTool,
+)

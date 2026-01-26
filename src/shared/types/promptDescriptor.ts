@@ -1,3 +1,5 @@
+import { createDescTypeGuard } from './index.ts'
+
 // Prompt descriptor from MCP SDK
 export interface Prompt {
     name: string
@@ -28,26 +30,11 @@ export interface MCPHivePromptsDesc {
     prompts: Prompt[]
 }
 
-// Type guard for a prompts descriptor
-export function isMCPHivePromptsDesc(obj: unknown): obj is MCPHivePromptsDesc {
-    if (
-        obj !== null &&
-        typeof obj === 'object' &&
-        typeof (obj as MCPHivePromptsDesc).id === 'string' &&
-        typeof (obj as MCPHivePromptsDesc).server === 'string' &&
-        typeof (obj as MCPHivePromptsDesc).prompts === 'object' &&
-        Array.isArray((obj as MCPHivePromptsDesc).prompts)
-    ) {
-        for (const p of (obj as MCPHivePromptsDesc).prompts) {
-            if (!isPrompt(p)) {
-                return false
-            }
-        }
-
-        return true
-    }
-    return false
-}
+// Type guard for a prompts descriptor using generic factory
+export const isMCPHivePromptsDesc = createDescTypeGuard<
+    MCPHivePromptsDesc,
+    Prompt
+>('prompts', isPrompt)
 
 // Prompt message returned from get operations
 export interface PromptMessage {

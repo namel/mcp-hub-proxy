@@ -1,3 +1,5 @@
+import { createDescTypeGuard } from './index.ts'
+
 // Resource descriptor from MCP SDK
 export interface Resource {
     uri: string
@@ -23,28 +25,11 @@ export interface MCPHiveResourcesDesc {
     resources: Resource[]
 }
 
-// Type guard for a resources descriptor
-export function isMCPHiveResourcesDesc(
-    obj: unknown,
-): obj is MCPHiveResourcesDesc {
-    if (
-        obj !== null &&
-        typeof obj === 'object' &&
-        typeof (obj as MCPHiveResourcesDesc).id === 'string' &&
-        typeof (obj as MCPHiveResourcesDesc).server === 'string' &&
-        typeof (obj as MCPHiveResourcesDesc).resources === 'object' &&
-        Array.isArray((obj as MCPHiveResourcesDesc).resources)
-    ) {
-        for (const r of (obj as MCPHiveResourcesDesc).resources) {
-            if (!isResource(r)) {
-                return false
-            }
-        }
-
-        return true
-    }
-    return false
-}
+// Type guard for a resources descriptor using generic factory
+export const isMCPHiveResourcesDesc = createDescTypeGuard<
+    MCPHiveResourcesDesc,
+    Resource
+>('resources', isResource)
 
 // Resource content returned from read operations
 export interface ResourceContent {

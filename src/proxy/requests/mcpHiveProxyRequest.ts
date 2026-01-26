@@ -1,7 +1,20 @@
 import crypto from 'crypto'
-import { USER_AGENT } from '../../shared/constants.ts'
+import {
+    USER_AGENT,
+    MCPHIVE_SERVER,
+    METHOD_TOOLS_CALL,
+    MCPHIVE_TOOL_LIST_TOOLS,
+    MCPHIVE_TOOL_LIST_RESOURCES,
+    MCPHIVE_TOOL_LIST_PROMPTS,
+} from '../../shared/constants.ts'
 import { MCPHiveProxy } from '../mcpHiveProxy.ts'
-import type { RequestBody, RequestArgs } from '../../shared/types/request.ts'
+import type { RequestBody, RequestArgs, McpResult } from '../../shared/types/request.ts'
+import type { MCPHiveServerDesc } from '../../shared/types/serverDescriptor.ts'
+import { isMCPHiveServerDesc } from '../../shared/types/serverDescriptor.ts'
+import type { MCPHiveResourcesDesc } from '../../shared/types/resourceDescriptor.ts'
+import { isMCPHiveResourcesDesc } from '../../shared/types/resourceDescriptor.ts'
+import type { MCPHivePromptsDesc } from '../../shared/types/promptDescriptor.ts'
+import { isMCPHivePromptsDesc } from '../../shared/types/promptDescriptor.ts'
 import { Logger } from '../../shared/logger.ts'
 
 /**
@@ -70,5 +83,58 @@ export class MCPHiveProxyRequest {
             )
             return null
         }
+    }
+
+    /**
+     * Generic helper to list entities from MCP-HIVE
+     */
+    private static async listFromHive<T>(
+        toolName: string,
+        server: string,
+        typeGuard: (obj: unknown) => obj is T,
+    ): Promise<T> {
+        const result = await MCPHiveProxyRequest.sendMCPHiveRequest<McpResult>(
+            MCPHIVE_SERVER,
+            METHOD_TOOLS_CALL,
+            toolName,
+            { server },
+        )
+        if (result && typeGuard(result.structuredContent)) {
+            return result.structuredContent
+        }
+        throw new Error('Invalid response format from MCP-HIVE')
+    }
+
+    /**
+     * List tools for a server
+     */
+    static listTools(server: string): Promise<MCPHiveServerDesc> {
+        return MCPHiveProxyRequest.listFromHive(
+            MCPHIVE_TOOL_LIST_TOOLS,
+            server,
+            isMCPHiveServerDesc,
+        )
+    }
+
+    /**
+     * List resources for a server
+     */
+    static listResources(server: string): Promise<MCPHiveResourcesDesc> {
+        return MCPHiveProxyRequest.listFromHive(
+            MCPHIVE_TOOL_LIST_RESOURCES,
+            server,
+            isMCPHiveResourcesDesc,
+        )
+    }
+
+    /**
+     * List prompts for a server
+     */
+    static listPrompts(server: string): Promise<MCPHivePromptsDesc> {
+        return MCPHiveProxyRequest.listFromHive(
+            MCPHIVE_TOOL_LIST_PROMPTS,
+            server,
+            isMCPHivePromptsDesc,
+        )
     }
 }

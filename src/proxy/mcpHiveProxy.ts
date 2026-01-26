@@ -8,9 +8,6 @@ import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { Logger } from '../shared/logger.ts'
 import { Utils } from '../shared/utils.ts'
 import { MCPHiveProxyRequest } from './requests/mcpHiveProxyRequest.ts'
-import { ListToolsProxy } from './requests/listToolsProxy.ts'
-import { ListResourcesProxy } from './requests/listResourcesProxy.ts'
-import { ListPromptsProxy } from './requests/listPromptsProxy.ts'
 import {
     METHOD_TOOLS_CALL,
     METHOD_RESOURCES_READ,
@@ -37,6 +34,7 @@ import type {
     ResourceLink,
 } from '@modelcontextprotocol/sdk/types.js'
 import type { MCPHiveDiscoveryDesc } from '../shared/types/discoveryDescriptor.ts'
+import type { Tool } from '../shared/types/serverDescriptor.ts'
 
 // the configuration of an MCPHive proxy
 interface MCPHiveProxyConfig {
@@ -107,6 +105,49 @@ export class MCPHiveProxy {
         return MCPHiveProxy.instance
     }
 
+    /**
+     * Parse a tool descriptor and build Zod schemas for registration
+     */
+    private parseToolDesc(toolDesc: Tool): {
+        title: string
+        description: string
+        inputSchema: z.ZodRawShape
+        outputSchema?: z.ZodRawShape
+    } {
+        const unpackedArgs: Record<string, unknown> = {}
+        for (const [k, v] of Object.entries(toolDesc.input_schema)) {
+            unpackedArgs[k] = JSON.parse(v)
+        }
+        const inputSchema = ZodHelpers.inferZodRawShapeFromSpec(
+            unpackedArgs,
+            toolDesc.required_inputs,
+        )
+
+        let outputSchema: z.ZodRawShape | undefined
+        if (toolDesc.output_schema) {
+            const unpackedOutput: Record<string, unknown> = {}
+            for (const [k, v] of Object.entries(toolDesc.output_schema)) {
+                unpackedOutput[k] = JSON.parse(v)
+            }
+            outputSchema = ZodHelpers.inferZodRawShapeFromSpec(unpackedOutput, [])
+        }
+
+        const config: {
+            title: string
+            description: string
+            inputSchema: z.ZodRawShape
+            outputSchema?: z.ZodRawShape
+        } = {
+            title: toolDesc.name,
+            description: toolDesc.description,
+            inputSchema,
+        }
+        if (outputSchema) {
+            config.outputSchema = outputSchema
+        }
+        return config
+    }
+
     // initialize the proxy with key parameters
     public async initialize(
         serverName: string | undefined,
@@ -148,49 +189,13 @@ export class MCPHiveProxy {
         Logger.debug('Initializing in Gateway mode')
 
         // Register the Gateway tools:
-        // Fetch the mcp-hive tool "DiscoverServers".  This fetch also acts as a basic handshake
+        // Fetch the mcp-hive tool "DiscoverServers". This fetch also acts as a basic handshake
         // to confirm connectivity
-        const MCPHiveServerDesc = await ListToolsProxy.exec(MCPHIVE_SERVER)
+        const MCPHiveServerDesc = await MCPHiveProxyRequest.listTools(MCPHIVE_SERVER)
         const toolDesc = MCPHiveServerDesc.tools.find(
             (tool) => MCPHIVE_TOOL_DISCOVER_SERVERS === tool.name,
         )!
-        const unpackedArgs: Record<string, unknown> = {}
-        for (const [k, v] of Object.entries(toolDesc.input_schema)) {
-            unpackedArgs[k] = JSON.parse(v)
-        }
-
-        const toolArgs: z.ZodRawShape = ZodHelpers.inferZodRawShapeFromSpec(
-            unpackedArgs,
-            toolDesc.required_inputs,
-        )
-
-        // Parse output schema if present
-        let outputSchema: z.ZodRawShape | undefined
-        if (toolDesc.output_schema) {
-            const unpackedOutputSchema: Record<string, unknown> = {}
-            for (const [k, v] of Object.entries(toolDesc.output_schema)) {
-                unpackedOutputSchema[k] = JSON.parse(v)
-            }
-            outputSchema = ZodHelpers.inferZodRawShapeFromSpec(
-                unpackedOutputSchema,
-                [], // no required fields for output schema
-            )
-        }
-
-        // Build config with optional outputSchema
-        const toolConfig: {
-            title: string
-            description: string
-            inputSchema: z.ZodRawShape
-            outputSchema?: z.ZodRawShape
-        } = {
-            title: toolDesc.name,
-            description: toolDesc.description,
-            inputSchema: toolArgs,
-        }
-        if (outputSchema) {
-            toolConfig.outputSchema = outputSchema
-        }
+        const toolConfig = this.parseToolDesc(toolDesc)
 
         // register DiscoverServers
         this.mcpServer.registerTool(
@@ -275,51 +280,12 @@ export class MCPHiveProxy {
         Logger.debug(`Initializing in Proxy mode for server: ${serverName}`)
 
         // collect and register tools
-        const MCPHiveServerDesc = await ListToolsProxy.exec(serverName)
-        const toolCount = MCPHiveServerDesc.tools.length
-        for (let i = 0; i < toolCount; i++) {
-            const toolDesc = MCPHiveServerDesc.tools[i]!
-            const unpackedArgs: Record<string, unknown> = {}
-            for (const [k, v] of Object.entries(toolDesc.input_schema)) {
-                unpackedArgs[k] = JSON.parse(v)
-            }
-
-            // derive the Zod shape which describes the schema
-            const toolArgs: z.ZodRawShape = ZodHelpers.inferZodRawShapeFromSpec(
-                unpackedArgs,
-                toolDesc.required_inputs,
-            )
-
-            // Parse output schema if present
-            let outputSchema: z.ZodRawShape | undefined
-            if (toolDesc.output_schema) {
-                const unpackedOutputSchema: Record<string, unknown> = {}
-                for (const [k, v] of Object.entries(toolDesc.output_schema)) {
-                    unpackedOutputSchema[k] = JSON.parse(v)
-                }
-                outputSchema = ZodHelpers.inferZodRawShapeFromSpec(
-                    unpackedOutputSchema,
-                    [], // no required fields for output schema
-                )
-            }
-
-            // Build config with optional outputSchema
-            const toolConfig: {
-                title: string
-                description: string
-                inputSchema: z.ZodRawShape
-                outputSchema?: z.ZodRawShape
-            } = {
-                title: toolDesc.name,
-                description: toolDesc.description,
-                inputSchema: toolArgs,
-            }
-            if (outputSchema) {
-                toolConfig.outputSchema = outputSchema
-            }
+        const MCPHiveServerDesc = await MCPHiveProxyRequest.listTools(serverName)
+        for (const toolDesc of MCPHiveServerDesc.tools) {
+            const toolConfig = this.parseToolDesc(toolDesc)
 
             Logger.debug(
-                `registration of tool ${toolDesc.name} with schema ${JSON.stringify(toolArgs)}`,
+                `registration of tool ${toolDesc.name} with schema ${JSON.stringify(toolConfig.inputSchema)}`,
             )
 
             // register this tool
@@ -367,7 +333,7 @@ export class MCPHiveProxy {
         // collect and register resources
         try {
             const MCPHiveResourcesDesc =
-                await ListResourcesProxy.exec(serverName)
+                await MCPHiveProxyRequest.listResources(serverName)
             const resourceCount = MCPHiveResourcesDesc.resources.length
             Logger.debug(`Registering ${resourceCount} resources`)
 
@@ -440,7 +406,7 @@ export class MCPHiveProxy {
 
         // collect and register prompts
         try {
-            const MCPHivePromptsDesc = await ListPromptsProxy.exec(serverName)
+            const MCPHivePromptsDesc = await MCPHiveProxyRequest.listPrompts(serverName)
             const promptCount = MCPHivePromptsDesc.prompts.length
             Logger.debug(`Registering ${promptCount} prompts`)
 
@@ -542,18 +508,12 @@ export class MCPHiveProxy {
                 } as TextContent
 
             case 'image':
-                return {
-                    type: 'image',
-                    data: entry.data || '',
-                    mimeType: entry.mimeType || 'application/octet-stream',
-                } as ImageContent
-
             case 'audio':
                 return {
-                    type: 'audio',
+                    type: entry.type,
                     data: entry.data || '',
                     mimeType: entry.mimeType || 'application/octet-stream',
-                } as AudioContent
+                } as ImageContent | AudioContent
 
             case 'resource':
                 // EmbeddedResource contains a nested resource with text or blob
